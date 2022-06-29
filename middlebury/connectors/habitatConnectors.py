@@ -218,7 +218,7 @@ wbt.set_nodata_value(
 wbt.clump(
     i = "144_low_friction_no_blocks_0nd.tif",
     output = "145_low_friction_no_blocks_clumps.tif",
-    diag=True,
+    diag=False,
     zero_back=False
 )
 
@@ -363,7 +363,7 @@ wbt.equal_to(
 wbt.clump(
     i = "244_spurs_boolean.tif",
     output = "245_spurs_clumps.tif",
-    diag=True,
+    diag=False,
     zero_back=True
 )
 

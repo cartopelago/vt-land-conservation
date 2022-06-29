@@ -1,9 +1,10 @@
 #  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-#  name:     treeHabitatBlocks.py
-#  purpose:  to identify tree canopy habitat blocks for conservation planning
+#  name:     representativeness.py
+#  purpose:  to evaluate representativeness of conservation lands,
+#              tree blocks, and habitat connectors for 30x2030 and 50x2050 goals.
 #
 #  author:   Jeff Howarth
-#  update:   06/24/2022
+#  update:   06/29/2022
 #  license:  Attribution-ShareAlike 4.0 International (CC BY-SA 4.0)
 #  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -25,7 +26,8 @@ wbt = WhiteboxTools()
 # # wbt.work_dir = "/Volumes/LaCie/GEOG0310/data/lForestBlocks"
 #
 # Test data
-wbt.work_dir = "/Volumes/LaCie/midd_cp_2022/represent"
+
+wbt.work_dir = "/Volumes/limuw/conservation/outputs/represent"
 
 #  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #  Required datasets:
@@ -34,7 +36,8 @@ wbt.work_dir = "/Volumes/LaCie/midd_cp_2022/represent"
 nc = "/Volumes/limuw/conservation/data/midd/iNatCom_12222021.tif"
 town = "/Volumes/limuw/conservation/data/vtShapes/vtBoundaries/BoundaryTown_TWNBNDS/middlebury.shp"
 blocks = "/Volumes/limuw/conservation/outputs/tree_blocks/142_C1_blocks_gt10_0nd.tif"
-pro ="/Volumes/limuw/conservation/dataproStackFlat_062621.tif"
+pro = "/Volumes/limuw/conservation/data/midd/proStackFlat_062621.tif"
+connectors = "/Volumes/limuw/conservation/outputs/connectors/252_connector_classes.tif"
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # 1. Compute acres of potential natural communities in town.
@@ -121,30 +124,102 @@ wbt.zonal_statistics(
 )
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# 2. Compute acres of  natural communities in town forest blocks.
+# 2. Compute acres of natural communities in conserved land with natural cover.
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-# 2.1.1. Isolate forest blocks in town.
+# 2.1.1 Isolate conservation with natural cover.
 
-wbt.multiply(
-    input1 = blocks,
-    input2 = "113_town_raster_binary_0nd.tif",
-    output = "211_blocks_in_town.tif"
+wbt.equal_to(
+    input1 = pro,
+    input2 = 2,
+    output = "211_pro_nat_cover.tif"
 )
 
-# 2.1.2. Isolate natural community types in forest blocks.
+# 2.1.2. Isolate conservation with natural cover in town.
+
+wbt.multiply(
+    input1 = "211_pro_nat_cover.tif",
+    input2 = "113_town_raster_binary_0nd.tif",
+    output = "212_pro_nat_in_town.tif"
+)
+
+# 2.1.3. Isolate natural community types in town protected lands.
 
 wbt.multiply(
     input1 = "121_nc_0nd.tif",
-    input2 = "211_blocks_in_town.tif",
-    output = "212_nc_in_blocks.tif"
+    input2 = "212_pro_nat_in_town.tif",
+    output = "213_nc_in_pro_nat.tif"
 )
 
-# 2.1.3. Compute area of natural communities in blocks.
+# 2.1.4. Compute area of natural communities in blocks.
 
 wbt.raster_area(
-    i = "212_nc_in_blocks.tif",
-    output = "213_nc_in_blocks_area.tif",
+    i = "213_nc_in_pro_nat.tif",
+    output = "214_nc_in_pro_nat_area.tif",
+    out_text=False,
+    units="map units",
+    zero_back=False,
+)
+
+# 2.1.5. Convert to acres.
+
+wbt.divide(
+    input1 = "214_nc_in_pro_nat_area.tif",
+    input2 = 4046.86,
+    output = "215_nc_in_pro_nat_acres.tif"
+)
+
+# 2.1.6. Produce table of acres.
+
+wbt.zonal_statistics(
+    i = "215_nc_in_pro_nat_acres.tif",
+    features = "213_nc_in_pro_nat.tif",
+    output=None,
+    stat="max",
+    out_table="216_TABLE_nc_in_town_pro_lands.html"
+)
+
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# 3. Compute acres of natural communities in town forest blocks.
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+# 3.1.0. Convert no data to 0 in blocks.
+
+wbt.convert_nodata_to_zero(
+    i = blocks,
+    output = "310_blocks_ndto0.tif"
+)
+
+# 3.1.1. Isolate forest blocks in town.
+
+wbt.multiply(
+    input1 = "310_blocks_ndto0.tif",
+    input2 = "113_town_raster_binary_0nd.tif",
+    output = "311_blocks_in_town.tif"
+)
+
+# 3.1.2. Combine forest blocks with protected lands in town.
+
+wbt.Or(
+    input1 = "311_blocks_in_town.tif",
+    input2 = "211_pro_nat_cover.tif",
+    output = "312_blocks_in_town_or_pro_lands.tif"
+)
+
+# 3.1.3. Isolate natural community types in forest blocks.
+
+wbt.multiply(
+    input1 = "121_nc_0nd.tif",
+    input2 = "312_blocks_in_town_or_pro_lands.tif",
+    output = "313_nc_in_blocks_in_town_or_pro_lands.tif"
+)
+
+# 3.1.4. Compute area of natural communities in blocks.
+
+wbt.raster_area(
+    i = "313_nc_in_blocks_in_town_or_pro_lands.tif",
+    output = "314_nc_in_blocks_in_town_or_pro_lands_area.tif",
     out_text=False,
     units="map units",
     zero_back=False,
@@ -153,75 +228,88 @@ wbt.raster_area(
 # 2.1.4. Convert to acres.
 
 wbt.divide(
-    input1 = "213_nc_in_blocks_area.tif",
+    input1 = "314_nc_in_blocks_in_town_or_pro_lands_area.tif",
     input2 = 4046.86,
-    output = "214_nc_in_blocks_acres.tif"
+    output = "315_nc_in_blocks_in_town_or_pro_lands_acres.tif"
 )
 
 # 2.1.4. Produce table of acres.
 
 wbt.zonal_statistics(
-    i = "214_nc_in_blocks_acres.tif",
-    features = "212_nc_in_blocks.tif",
+    i = "315_nc_in_blocks_in_town_or_pro_lands_acres.tif",
+    features = "313_nc_in_blocks_in_town_or_pro_lands.tif",
     output=None,
     stat="max",
-    out_table="215_TABLE_nc_in_town_blocks_acres.html"
+    out_table="316_TABLE_nc_in_blocks_in_town_or_pro_lands.tif.html"
 )
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# 3. Compute acres of natural communities in conserved land with natural cover.
+# 4. Compute acres of natural communities in town habitat connectors.
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-# 3.1.1 Isolate conservation with natural cover.
+# 4.1.0. Isolate non-island habitat connectors.
 
-wbt.reclass(
-    i = pro,
-    output = "311_pro_nat_cover.tif",
-    reclass_vals = "0;0;0;1;1;2;0;3",
-    assign_mode=True
+wbt.not_equal_to(
+    input1 = connectors,
+    input2 = 10,
+    output = "410_connectors_not_islands.tif"
 )
 
+# 4.1.1. Convert no data to 0 in connectors.
 
-# 3.1.2. Isolate conservation with natural cover in town.
+wbt.convert_nodata_to_zero(
+    i = "410_connectors_not_islands.tif",
+    output = "411_connectors_not_islands_ndto0.tif"
+)
+
+# 4.1.2. Isolate non-island habitat connectors in town.
 
 wbt.multiply(
-    input1 = "311_pro_nat_cover.tif",
+    input1 = "411_connectors_not_islands_ndto0.tif",
     input2 = "113_town_raster_binary_0nd.tif",
-    output = "312_pro_nat_in_town.tif"
+    output = "412_connectors_not_islands_in_town.tif"
 )
 
-# 3.1.3. Isolate natural community types in town protected lands.
+# 4.1.3. Combine connectors with pro lands and tree blocks.
+
+wbt.Or(
+    input1 = "312_blocks_in_town_or_pro_lands.tif",
+    input2 = "412_connectors_not_islands_in_town.tif",
+    output = "413_pro_or_block_or_connectors.tif"
+)
+
+# 4.1.4. Isolate natural community types in connectors.
 
 wbt.multiply(
     input1 = "121_nc_0nd.tif",
-    input2 = "312_pro_nat_in_town.tif",
-    output = "313_nc_in_pro_nat.tif"
+    input2 = "413_pro_or_block_or_connectors.tif",
+    output = "414_nc_in_pro_or_block_or_connectors.tif"
 )
 
-# 3.1.4. Compute area of natural communities in blocks.
+# 4.1.5. Compute area of natural communities in blocks.
 
 wbt.raster_area(
-    i = "313_nc_in_pro_nat.tif",
-    output = "314_nc_in_pro_nat_area.tif",
+    i = "414_nc_in_pro_or_block_or_connectors.tif",
+    output = "415_nc_in_pro_or_block_or_connectors_area.tif",
     out_text=False,
     units="map units",
     zero_back=False,
 )
 
-# 3.1.5. Convert to acres.
+# 4.1.6. Convert to acres.
 
 wbt.divide(
-    input1 = "314_nc_in_pro_nat_area.tif",
+    input1 = "415_nc_in_pro_or_block_or_connectors_area.tif",
     input2 = 4046.86,
-    output = "315_nc_in_pro_nat_acres.tif"
+    output = "416_nc_in_pro_or_block_or_connectors_acres.tif"
 )
 
-# 3.1.6. Produce table of acres.
+# 4.1.7. Produce table of acres.
 
 wbt.zonal_statistics(
-    i = "315_nc_in_pro_nat_acres.tif",
-    features = "313_nc_in_pro_nat.tif",
+    i = "416_nc_in_pro_or_block_or_connectors_acres.tif",
+    features = "414_nc_in_pro_or_block_or_connectors.tif",
     output=None,
     stat="max",
-    out_table="316_TABLE_nc_in_town_pro_lands.html"
+    out_table="417_TABLE_nc_in_pro_or_block_or_connectors_acres.html"
 )
