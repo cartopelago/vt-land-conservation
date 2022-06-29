@@ -25,29 +25,21 @@ wbt = WhiteboxTools()
 # # wbt.work_dir = "/Volumes/LaCie/GEOG0310/data/lForestBlocks"
 #
 # Test data
-wbt.work_dir = "/Volumes/LaCie/midd_cp_2022/hb_filter"
+wbt.work_dir = "/Volumes/limuw/conservation/outputs/tree_blocks"
 
 #  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #  Required datasets:
 #  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-# Full datasets
+# Imported datasets
 
-rds = "/Volumes/LaCie/data/middPlan/midd/rdsFragmenting_12092021.tif"        # Highways and Class 3 roads
-lc = "/Volumes/LaCie/data/middPlan/midd/iLandCover_midd_12152021.tif"        # 2016 Vermont base land cover
-nc = "/Volumes/LaCie/data/middPlan/midd/iNatCom_12222021.tif"
-wet = "/Volumes/LaCie/data/middPlan/hWetlands/07_allWetlands_reclassed.tif"            # NC from soils
-
-#
-# # Test datasets
-#
-# # rds = "rds_fragmenting.tif"       # Highways and Class 3 roads
-# # bb = "buildingsBuffer100ft.tif"   # 2016 building footprints with 100 ft buffer
-# # lc = "lc_5m.tif"                  # 2016 Vermont base land cover
-#
+rds = "/Volumes/limuw/conservation/data/midd/rdsFragmenting_12092021.tif"        # Highways and Class 3 roads
+lc = "/Volumes/limuw/conservation/data/midd/iLandCover_midd_12152021.tif"        # 2016 Vermont base land cover
+nc = "/Volumes/limuw/conservation/data/midd/iNatCom_12222021.tif"
+wet = "/Volumes/limuw/conservation/data/hWetlands/07_allWetlands_reclassed.tif"            # NC from soils
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# CRITERIA 1
+# CRITERION 1
 # Do tree canopy locations form blocks that are larger than 10 acres?
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -55,22 +47,21 @@ wet = "/Volumes/LaCie/data/middPlan/hWetlands/07_allWetlands_reclassed.tif"     
 # 1.1. Create fragmentation layer from roads
 # ------------------------------------------------------
 
-# 1.1.1. Buffer roads by 9 meters (to approximate 30 foot ROW)
+# 1.1.1.  Expand roads by a pixel.
 
-wbt.buffer_raster(
+wbt.maximum_filter(
     i = rds,
-    output = "111_rds_buff3m.tif",
-    size = 9,
-    gridcells=False
+    output = "111_rds_buffered.tif",
+    filterx=3,
+    filtery=3
 )
 
-# 1.1.2. Invert (make roads = 0 and not roads = 1)
+# 1.1.2. Invert roads (make roads = 0 and not roads = 1)
 
-wbt.reclass(
-    i = "111_rds_buff3m.tif",
-    output = "112_roads_buffered.tif",
-    reclass_vals = "1;0;0;1",
-    assign_mode=True
+wbt.not_equal_to(
+    input1 = "111_rds_buffered.tif",
+    input2 = 1,
+    output = "112_rds_buffered_inverse.tif"
 )
 
 # ------------------------------------------------------
@@ -98,7 +89,7 @@ wbt.majority_filter(
 # 1.2.3. Erase roads from tree canopy
 
 wbt.multiply(
-    input1 = "112_roads_buffered.tif",
+    input1 = "112_rds_buffered_inverse.tif",
     input2 = "122_treeCanopy_majorityFilter.tif",
     output = "123_treeCanopy_eraseRoads.tif",
 )
@@ -180,7 +171,7 @@ wbt.convert_nodata_to_zero(
 )
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# CRITERIA 2
+# CRITERION 2
 #
 # Is block large (>100 acres)?
 #
@@ -221,7 +212,7 @@ wbt.convert_nodata_to_zero(
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# CRITERIA 3
+# CRITERION 3
 #
 # Does block represent rare community (floodplain forest or clayplain)?
 #
@@ -315,7 +306,7 @@ wbt.clump(
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# CRITERIA 4
+# CRITERION 4
 #
 # Does block represent wetland or aquatic habitat?
 #
@@ -442,7 +433,7 @@ wbt.clump(
 )
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# CRITERIA 5
+# CRITERION 5
 #
 # Is block near a large block.
 #
