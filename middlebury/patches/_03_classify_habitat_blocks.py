@@ -38,7 +38,7 @@ scratch_repo = "/Volumes/limuw/conservation/outputs/_scratch"
 starter = "/Volumes/limuw/conservation/outputs/landscapePatches/_01/154_lc_update.tif"
 rc = "/Volumes/limuw/conservation/data/vtShapes/vtRiverCorridors/WaterHydro_RiverCorridors/epsg32145/riverCorridors_epsg32145.shp"
 rc_ss = "/Volumes/limuw/conservation/data/vtShapes/vtRiverCorridors/WaterHydro_RiverCorridors/epsg32145/smallStreams_gtp25_epsg32145.shp"
-
+town = "/Volumes/limuw/conservation/data/vtShapes/vtBoundaries/BoundaryTown_TWNBNDS/middlebury.shp"
 
 #  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #  CODES FOR STARTER LAYER.
@@ -146,7 +146,7 @@ field_topology = data_repo+'_recovering_clearing_topology.tif'
 field_blocks = data_repo+'_field_habitat_blocks_withRoadXing.tif'
 scenic_viewsheds = '/Volumes/limuw/conservation/lScenicViews/data/roads/14_visibilityByRegion.tif'
 
-ct.classifyFieldBlocks(field_blocks, scenic_viewsheds, starter)
+# ct.classifyFieldBlocks(field_blocks, scenic_viewsheds, starter)
 
 
 # ------------------------------------------------------------------------------
@@ -164,22 +164,17 @@ river_corridors = data_repo+'_riverCorridors_with_smallStreamBuffers.tif'
 
 # 2. Make habitat connectors.
 
-# makeHabitatConnectors(forest_blocks, field_blocks, recovering_reforested_topology, lowland_connector_topology, river_corridors)
-
-
+# ct.makeHabitatConnectors(forest_blocks, field_blocks, recovering_reforested_topology, lowland_connector_topology, river_corridors)
 
 # ------------------------------------------------------------------------------
 # COMPOSITE LAYER
 # ------------------------------------------------------------------------------
 
-clearing_field_block = data_repo+'_field_block_clearings.tif'
-recovering_field_block = data_repo+'_field_habitat_blocks_withRoadXing.tif'
-scenic_field_block = data_repo+'_field_block_scenic_foregrounds.tif'
-habitat_connector = data_repo+'_forest_habitat_connectors.tif'
-forest_block = data_repo+'_forest_habitat_blocks_withRoadXing.tif'
+field = data_repo+'_field_blocks_classed.tif'
+connector = data_repo+'_forest_habitat_connectors.tif'
+forest = data_repo+'_forest_habitat_blocks_withRoadXing.tif'
+base = "/Volumes/limuw/conservation/outputs/landscapePatches/_01/154_lc_update.tif"
 
-# makeComposite()
+ct.makeComposite(forest, connector, field, base)
 
-# Prioritize development (housing and solar energy) on uplands outside scenic viewsheds.
-# Prioritize conservation on lowlands in scenic viewsheds (balance ag, reforestation, and grassland bird habitat)
-# Mix development and conservation on scenic upland fields and non-scenic lowlands.
+ct.clipByTown('_conservation_plan', data_repo+'_conservation_plan.tif', town, base)

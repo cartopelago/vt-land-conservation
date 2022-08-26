@@ -1,9 +1,9 @@
 #  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-#  name:     _02_prep_landform_classes.py
-#  purpose:  classify landforms from DEM and isolate lowlands.
+#  name:     _conservation_tools.py
+#  purpose:  Methods for Town of Middlebury Conservation Plan.
 #
 #  author:   Jeff Howarth
-#  update:   08/12/2022
+#  update:   08/19/2022
 #  license:  Attribution-ShareAlike 4.0 International (CC BY-SA 4.0)
 #  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -16,7 +16,6 @@ from WBT.whitebox_tools import WhiteboxTools
 # declare a name for the tools
 
 wbt = WhiteboxTools()
-
 
 #  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #  Working directories
@@ -35,7 +34,6 @@ lc = "/Volumes/limuw/conservation/data/midd/iLandCover_midd_12152021.tif"
 dem = "/Volumes/limuw/conservation/data/midd/iDemHF_0p7_12222021.tif"
 rc = "/Volumes/limuw/conservation/data/vtShapes/vtRiverCorridors/WaterHydro_RiverCorridors/epsg32145/riverCorridors_epsg32145.shp"
 rc_ss = "/Volumes/limuw/conservation/data/vtShapes/vtRiverCorridors/WaterHydro_RiverCorridors/epsg32145/smallStreams_gtp25_epsg32145.shp"
-
 
 # ------------------------------------------------------------------------------
 # CLASSIFY LANDFORMS
@@ -267,7 +265,7 @@ def makeHabitatConnectors(forest_blocks, field_blocks, forest_topology, lowland_
     # Criteria 2 - where recovering patches tombolo forest blocks --> habitat connectors
     wbt.equal_to(input1 = forest_topology, input2 = 4, output = '_02.tif')
     # Criteria 3 - where open lowlands touch one or more forest block
-    wbt.equal_to(input1 = lowland_topology, input2 = 4, output = '_03.tif')
+    wbt.greater_than(input1 = lowland_topology, input2 = 2, output = '_03.tif', incl_equals=True)
     # Criteria 4: where river and small stream corridors intersect field blocks
     wbt.And(input1 = rivers, input2 = field_blocks, output = '_04.tif')
     # Union criteria
@@ -308,7 +306,7 @@ def identifyClearings(blocks, starter, label):
 # CLASSIFY FIELD BLOCKS
 # ------------------------------------------------------------------------------
 
-def classifyFieldBlocks(blocks, scenic, starter):
+def classifyFieldBlocks(blocks, scenic, soils, starter):
     wbt.work_dir = scratch_repo
     # Make field blocks binary.
     wbt.not_equal_to(input1 = blocks, input2 = 0, output = '_01.tif')
@@ -341,30 +339,51 @@ def classifyFieldBlocks(blocks, scenic, starter):
 # COMPOSITE LAYER
 # ------------------------------------------------------------------------------
 
-def makeComposite():
+# forest = forest block, connector = habitat connector, field = classed field block, starter = landcover classes
+
+def makeComposite(forest, connector, field, starter):
     # Make binary of FOREST BLOCKS.
-    wbt.not_equal_to(input1 = forest_block, input2 = 0, output = '_01.tif')
+    wbt.not_equal_to(input1 = forest, input2 = 0, output = '_01.tif')
     # Make binary of HABITAT CONNECTORS.
-    wbt.not_equal_to(input1 = habitat_connector, input2 = 0, output = '_02.tif')
+    wbt.not_equal_to(input1 = connector, input2 = 0, output = '_02.tif')
     # Union forest blocks and habitat connectors.
     wbt.Or(input1 = '_01.tif', input2 = '_02.tif', output = '_03.tif')
-    # Make binary of scenic field blocks.
-    wbt.not_equal_to(input1 = scenic_field_block, input2 = 0, output = '_04.tif')
-    # Make SCENIC FIELD FLOCKS by removing forest block - habitat connector union from scenic field blocks.
+    # Make binary of FIELD BLOCKS.
+    wbt.not_equal_to(input1 = field, input2 = 0, output = '_04.tif')
+    # Erase field blocks that are not habitat connector or forest block.
     wbt.Not(input1 = '_04.tif', input2 = '_03.tif', output = '_05.tif')
-    # Union forest blocks, habitat connectors, and scenic field blocks.
-    wbt.Or(input1 = '_03.tif', input2 = '_05.tif', output = '_06.tif')
-    # Make binary of clearing field blocks.
-    wbt.not_equal_to(input1 = clearing_field_block, input2 = 0, output = '_07.tif')
-    # Make CLEARING by removing scenic feld blocks from union.
-    wbt.Not(input1 = '_07.tif', input2 = '_06.tif', output = '_08.tif')
-    # Union forest blocks, habitat connectors, scenic fields, and clearing field blocks.
-    wbt.Or(input1 = '_06.tif', input2 = '_07.tif', output = '_09.tif')
-    # Make binary of field blocks.
-    wbt.not_equal_to(input1 = recovering_field_block, input2 = 0, output = '_10.tif')
-    # Make RECOVERING FIELDS by removing forest blocks, habitat connectors, scenic, and clearing from field blocks.
-    wbt.Not(input1 = '_10.tif', input2 = '_09.tif', output = '_11.tif')
-    # Assign codes
-    statement = "(('_01.tif' * 5) + ('_02.tif' * 4) + ('_05.tif' * 3) + ('_11.tif' * 2) + '_08.tif')"
+    wbt.multiply(input1 = field, input2 = '_05.tif', output = '_06.tif')
+    # Erase habitat connectors that are forest blocks.
+    wbt.Not(input1 = '_02.tif', input2 = '_01.tif', output = '_07.tif')
+    # make composite layer
+    statement = "(('_01.tif' * 5) + ('_07.tif' * 4) + '_06.tif')"
     wbt.raster_calculator(output = data_repo+'_conservation_plan.tif', statement = statement)
+    return;
+
+# # ------------------------------------------------------------------------------
+# # BURN ROADS AND WATER FEATURES
+# # ------------------------------------------------------------------------------
+#
+# def burnReferenceFeatures(plan, starter)
+#     # Make binary of WATER FEATURES.
+#     wbt.equal_to(input1 = starter, input2 = 2, output = '_01.tif')
+#     # Make binary of FRAGMENTING ROADS.
+#     wbt.equal_to(input1 = starter, input2 = 99, output = '_02.tif')
+#     # Union two binaries.
+#     wbt.Or(input1 = '_01.tif', input2 = '_02.tif', output = '_03.tif')
+#     # Inverse union.
+#     wbt.equal_to(input1 = '_03.tif', input2 = 0, output = '_04.tif')
+#     # Burn water features and fragmenting roads into composite layer.
+#     statement2 = "(('_01.tif' * 6) + ('_02.tif' * 10) + ('_08.tif' * '_14.tif'))"
+#     wbt.raster_calculator(output = data_repo+'_conservation_plan.tif', statement = statement2)
+#     return:
+
+# ------------------------------------------------------------------------------
+# CLIP TO TOWN BOUNDARY
+# ------------------------------------------------------------------------------
+
+def clipByTown(label, image, town, mama):
+    wbt.vector_polygons_to_raster(i = town, output = "_01.tif", field = "FID", nodata = False, cell_size = None, base = mama)
+    wbt.set_nodata_value(i = "_01.tif", output = '_02.tif',back_value=0.0)
+    wbt.multiply(input1 = image, input2 = '_02.tif', output = data_repo+label+'_clipByTown.tif')
     return;
