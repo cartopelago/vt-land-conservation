@@ -1,6 +1,6 @@
 #  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #  name:     _classify_habitat_blocks.py
-#  purpose:  Distinguish island, spur, hole, and tomboloy classes between
+#  purpose:  Distinguish island, spur, hole, and tombology classes between
 #               figure and ground images.
 #  author:   Jeff Howarth
 #  update:   08/11/2022
