@@ -103,6 +103,7 @@ def withRoadXing(base, label):
 def classTopology(figure, ground, label):
     "To create topology classes for figure and ground object layers with 0 as background."
     wbt.work_dir = scratch_repo
+
     # Convert figure background 0 into noData.
     wbt.set_nodata_value(i = figure, output = 'a.tif', back_value = 0)
 
@@ -164,6 +165,7 @@ def classTopology(figure, ground, label):
 
 def makeForestHabitatBlocks(blocks, topology, label):
     "To make habitat blocks by filling holes."
+
     wbt.work_dir = scratch_repo
     # Select holes from topology.
     wbt.equal_to(input1 = topology, input2 = 3, output = '_01.tif')
@@ -180,6 +182,7 @@ def makeForestHabitatBlocks(blocks, topology, label):
 def makeFieldHabitatBlocks(ground, topology1, topology2, label):
     "To make field habitat blocks with recovering-clearing holes and recovering-forest islands."
     wbt.work_dir = scratch_repo
+
     # Select recovering holes in clearing ground from topology1.
     wbt.equal_to(input1 = topology1, input2 = 3, output = '_01.tif')
     # Select recovering islands in forest ground from topology2.
